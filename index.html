@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HUB Safety</title>
+<meta name="theme-color" content="#5FAF2E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HUB Safety">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root { --vert:#5FAF2E; --fonce:#0E3B10; --fond:#F4F4EF; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { display:flex; align-items:center; justify-content:center; background:var(--fond); color:var(--fonce);
+         font-family:'Figtree','Segoe UI',system-ui,Arial,sans-serif; padding:24px; }
+  .carte { text-align:center; max-width:340px; }
+  .carte img { width:104px; height:104px; border-radius:26px; box-shadow:0 12px 30px rgba(14,59,16,.22); }
+  h1 { font-size:26px; margin:18px 0 4px; letter-spacing:-.3px; }
+  p { margin:0 0 20px; color:#4b5a4e; font-size:15px; }
+  .barre { height:5px; width:140px; margin:0 auto 22px; background:#dfe8d6; border-radius:99px; overflow:hidden; }
+  .barre i { display:block; height:100%; width:40%; background:var(--vert); border-radius:99px; animation:glisse 1.1s ease-in-out infinite; }
+  @keyframes glisse { 0% { transform:translateX(-100%); } 100% { transform:translateX(350%); } }
+  a.bouton { display:inline-block; background:var(--vert); color:#fff; text-decoration:none; font-weight:700;
+             padding:13px 26px; border-radius:999px; font-size:16px; }
+  #hors { display:none; color:#b4530a; font-weight:600; margin-bottom:16px; }
+</style>
+</head>
+<body>
+  <div class="carte">
+    <img src="icons/icon-192.png" alt="HUB Safety">
+    <h1 id="titre">HUB Safety</h1>
+    <p>Ouverture de ton espace…</p>
+    <div class="barre" id="barre"><i></i></div>
+    <div id="hors">Pas de réseau pour le moment.</div>
+    <a class="bouton" id="ouvrir" href="#">Ouvrir le HUB</a>
+  </div>
+<script src="config.js"></script>
+<script>
+(function () {
+  // Les paramètres éventuels (ex. ?mag=ISNEAUVILLE) sont transmis tels quels au HUB, sauf « source ».
+  function adresse() {
+    var base = window.HUB_URL, p = new URLSearchParams(location.search);
+    p.delete("source"); p.delete("stay");
+    var q = p.toString();
+    return q ? base + (base.indexOf("?") === -1 ? "?" : "&") + q : base;
+  }
+  var url = adresse();
+  document.getElementById("ouvrir").href = url;
+  if (window.HUB_NOM) document.getElementById("titre").textContent = window.HUB_NOM;
+
+  if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
+
+  if (!navigator.onLine) {
+    document.getElementById("hors").style.display = "block";
+    document.getElementById("barre").style.display = "none";
+    window.addEventListener("online", function () { location.replace(url); });
+    return;
+  }
+  if (new URLSearchParams(location.search).has("stay")) return;   // ?stay : reste sur cette page (tests)
+  setTimeout(function () { location.replace(url); }, 700);
+})();
+</script>
+</body>
+</html>
