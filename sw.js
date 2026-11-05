@@ -1,6 +1,6 @@
 // Service worker minimal : garde l'écran de démarrage en mémoire pour que l'icône s'ouvre même sans réseau.
 // (Les données du HUB, elles, restent sur Google : rien n'est stocké ici.)
-var VERSION = "hub-safety-v1";
+var VERSION = "hub-safety-v2";
 var COQUILLE = ["./", "index.html", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", function (e) {
