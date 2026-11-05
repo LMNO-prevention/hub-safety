@@ -27,6 +27,13 @@
   @keyframes glisse { 0% { transform:translateX(-100%); } 100% { transform:translateX(350%); } }
   a.bouton { display:inline-block; background:var(--vert); color:#fff; text-decoration:none; font-weight:700;
              padding:13px 26px; border-radius:999px; font-size:16px; }
+  .zone-install { display:none; }
+  .zone-install.visible { display:block; }
+  button.bouton { border:0; cursor:pointer; font-family:inherit; display:inline-block; background:var(--vert); color:#fff; font-weight:700;
+             padding:14px 28px; border-radius:999px; font-size:17px; box-shadow:0 8px 20px rgba(95,175,46,.35); }
+  a.lien { display:block; margin-top:16px; color:#2E6B12; font-weight:600; font-size:14px; text-decoration:underline; }
+  .aide { background:#fff; border-radius:18px; padding:14px 16px; text-align:left; font-size:14px; line-height:1.5; color:#334155; margin:0 0 18px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
+  .aide b { color:var(--fonce); }
   #hors { display:none; color:#b4530a; font-weight:600; margin-bottom:16px; }
 </style>
 </head>
@@ -34,35 +41,88 @@
   <div class="carte">
     <img src="icons/icon-192.png" alt="HUB Safety">
     <h1 id="titre">HUB Safety</h1>
-    <p>Ouverture de ton espace…</p>
-    <div class="barre" id="barre"><i></i></div>
-    <div id="hors">Pas de réseau pour le moment.</div>
-    <a class="bouton" id="ouvrir" href="#">Ouvrir le HUB</a>
+
+    <!-- Ouverture automatique (application déjà installée) -->
+    <div id="zone-auto">
+      <p>Ouverture de ton espace…</p>
+      <div class="barre" id="barre"><i></i></div>
+      <div id="hors">Pas de réseau pour le moment.</div>
+      <a class="bouton" id="ouvrir" href="#">Ouvrir le HUB</a>
+    </div>
+
+    <!-- Installation (affichée seulement dans le navigateur, sans redirection automatique) -->
+    <div class="zone-install" id="zone-install">
+      <p>Installe l'application pour l'avoir sur ton écran d'accueil.</p>
+      <div class="aide" id="aide-ios" style="display:none;">
+        <b>Sur iPhone (Safari) :</b><br>
+        1. Touche le bouton <b>Partager</b> (carré avec une flèche vers le haut)<br>
+        2. Touche <b>Sur l'écran d'accueil</b><br>
+        3. Touche <b>Ajouter</b>
+      </div>
+      <div class="aide" id="aide-autre" style="display:none;">
+        <b>Pour installer :</b><br>
+        Ouvre le <b>menu du navigateur</b> (⋮ ou ⋯) puis <b>Installer l'application</b> ou <b>Ajouter à l'écran d'accueil</b>.
+      </div>
+      <button type="button" class="bouton" id="btn-installer" style="display:none;">📲 Installer l'application</button>
+      <a class="lien" id="ouvrir2" href="#">Ouvrir le HUB sans installer →</a>
+    </div>
   </div>
 <script src="config.js"></script>
 <script>
 (function () {
-  // Les paramètres éventuels (ex. ?mag=ISNEAUVILLE) sont transmis tels quels au HUB, sauf « source ».
+  var $ = function (id) { return document.getElementById(id); };
+  var params = new URLSearchParams(location.search);
+
+  // Adresse du HUB : les paramètres éventuels (ex. ?mag=ISNEAUVILLE) sont transmis, sauf « source », « stay » et « go ».
   function adresse() {
     var base = window.HUB_URL, p = new URLSearchParams(location.search);
-    p.delete("source"); p.delete("stay");
+    ["source", "stay", "go"].forEach(function (k) { p.delete(k); });
     var q = p.toString();
     return q ? base + (base.indexOf("?") === -1 ? "?" : "&") + q : base;
   }
   var url = adresse();
-  document.getElementById("ouvrir").href = url;
-  if (window.HUB_NOM) document.getElementById("titre").textContent = window.HUB_NOM;
+  $("ouvrir").href = url; $("ouvrir2").href = url;
+  if (window.HUB_NOM) $("titre").textContent = window.HUB_NOM;
 
   if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
 
-  if (!navigator.onLine) {
-    document.getElementById("hors").style.display = "block";
-    document.getElementById("barre").style.display = "none";
-    window.addEventListener("online", function () { location.replace(url); });
+  // Application installée (ou lien « ?go ») : ouverture directe. Sinon : page d'installation, SANS redirection.
+  var installee = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+                  window.navigator.standalone === true || params.get("source") === "pwa" || params.has("go");
+
+  if (installee) {
+    if (!navigator.onLine) {
+      $("hors").style.display = "block"; $("barre").style.display = "none";
+      window.addEventListener("online", function () { location.replace(url); });
+      return;
+    }
+    setTimeout(function () { location.replace(url); }, 400);
     return;
   }
-  if (new URLSearchParams(location.search).has("stay")) return;   // ?stay : reste sur cette page (tests)
-  setTimeout(function () { location.replace(url); }, 700);
+
+  // ---- Mode navigateur : on laisse le temps d'installer ----
+  $("zone-auto").style.display = "none";
+  $("zone-install").classList.add("visible");
+
+  var ua = navigator.userAgent || "";
+  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var invite = null;
+
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault(); invite = e;
+    $("aide-autre").style.display = "none";
+    $("btn-installer").style.display = "inline-block";
+  });
+  window.addEventListener("appinstalled", function () { setTimeout(function () { location.replace(url); }, 600); });
+
+  $("btn-installer").addEventListener("click", function () {
+    if (!invite) return;
+    invite.prompt();
+    invite.userChoice.then(function () { invite = null; $("btn-installer").style.display = "none"; });
+  });
+
+  if (ios) { $("aide-ios").style.display = "block"; }
+  else { setTimeout(function () { if (!invite) $("aide-autre").style.display = "block"; }, 1200); }   // si le navigateur n'a pas proposé le bouton
 })();
 </script>
 </body>
